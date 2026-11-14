@@ -123,3 +123,46 @@ def test_skip_interview_question(client):
     res_audit = client.get("/api/audit", headers={"X-User-Id": "maya"})
     skip_logs = [l for l in res_audit.json() if l["action"] == "interview_skipped" and l["target_id"] == "gap-004"]
     assert len(skip_logs) >= 1
+
+
+def test_interview_input_validation_and_error_handling(client):
+    """
+    Verifies input boundaries and error handling (DEF-01):
+    - Non-existent question ID returns 404.
+    - Overlong answer (>5000 chars) returns 422.
+    - Empty answer returns 422.
+    """
+    client.post("/api/demo/load", json={"force_reset": True}, headers={"X-User-Id": "maya"})
+
+    # Non-existent question ID on answer
+    res_404_ans = client.post(
+        "/api/interview/gap-nonexistent/answer",
+        json={"answer": "Some answer text."},
+        headers={"X-User-Id": "riya"},
+    )
+    assert res_404_ans.status_code == 404
+
+    # Non-existent question ID on skip
+    res_404_skip = client.post(
+        "/api/interview/gap-nonexistent/skip",
+        json={"reason": "Cannot remember."},
+        headers={"X-User-Id": "riya"},
+    )
+    assert res_404_skip.status_code == 404
+
+    # Overlong answer (> 5000 chars)
+    res_overlong = client.post(
+        "/api/interview/gap-001/answer",
+        json={"answer": "A" * 5001},
+        headers={"X-User-Id": "riya"},
+    )
+    assert res_overlong.status_code == 422
+
+    # Whitespace-only answer
+    res_empty = client.post(
+        "/api/interview/gap-001/answer",
+        json={"answer": "    "},
+        headers={"X-User-Id": "riya"},
+    )
+    assert res_empty.status_code == 422
+

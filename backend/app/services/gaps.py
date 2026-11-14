@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models import Claim, Question, EvidenceUnit, User, AuditLog, ConflictGroup
 from app.schemas import InterviewQuestionRead, InterviewQuoteItem, InterviewSessionResponse
