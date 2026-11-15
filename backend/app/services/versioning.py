@@ -50,12 +50,13 @@ def sanitize_redact_value(val: Any, viewer_clearance: int = 2) -> Any:
 def sanitize_csv_cell(value: Any) -> str:
     """
     Converts a value to string and protects against CSV formula injection.
-    Prefixes values starting with '=', '+', '-', or '@' with a single quote.
+    Prefixes values starting with '=', '+', '-', '@', '\t', or '\r' (including leading whitespace)
+    with a single quote.
     """
     if value is None:
         return ""
     s = str(value)
-    if s.startswith(("=", "+", "-", "@")):
+    if s.lstrip().startswith(("=", "+", "-", "@", "\t", "\r")):
         return f"'{s}"
     return s
 

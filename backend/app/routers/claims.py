@@ -181,7 +181,7 @@ def update_claim(
     and write audit_log with before/after snapshots.
     """
     claim = db.query(Claim).filter(or_(Claim.id == claim_id, func.lower(Claim.id) == claim_id.lower())).first()
-    if not claim:
+    if not claim or claim.access_level > current_user.clearance:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Claim '{claim_id}' not found.",

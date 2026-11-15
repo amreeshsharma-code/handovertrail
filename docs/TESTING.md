@@ -103,5 +103,20 @@ The test suite was extended with 12 new test cases across 3 test modules plus ca
    - `test_leave_conflict_unresolved`: Asserts explicit deferral with mandatory rationale.
    - `test_approval_gating_with_open_conflicts`: Proves open or unresolved conflicts block approval with HTTP 409 Conflict.
 
+---
+
+## 6. Security Audit & Hardening Suite (`test_security_audit.py`)
+
+The test suite includes 7 dedicated automated security regression test cases:
+
+1. **`test_x_user_id_validation_and_header_injection`**: Validates strict rejection of missing headers, empty strings, newline injection, null-byte / script injection, and overlong payloads (>50 chars), asserting sanitized 401 responses with no reflection.
+2. **`test_security_headers_present`**: Asserts OWASP defense-in-depth headers on all responses (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and `Content-Security-Policy`), and `Cache-Control: no-store` on all `/api/*` endpoints.
+3. **`test_body_size_limit_middleware`**: Verifies that requests exceeding 2 MB are rejected with HTTP 413 Request Entity Too Large.
+4. **`test_csv_formula_injection_hardening`**: Validates protection against CSV formula injection prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) even when preceded by leading whitespace.
+5. **`test_spa_path_traversal_blocked`**: Proves that dot-dot path traversal attempts in SPA catch-all static serving (`/..%2f.env`, `/assets/../../handovertrail.db`) strictly return 404 or index.html and never expose backend source or database files.
+6. **`test_claim_patch_clearance_boundary`**: Confirms that mutating a claim with an access level exceeding the caller's clearance strictly returns 404 Not Found without leaking existence.
+7. **`test_canary_leak_protection_across_endpoints`**: Comprehensive multi-endpoint audit verifying Arjun (clearance 1) cannot observe Level 2 or Level 3 canary tokens anywhere across `/api/handover`, `/api/claims`, `/api/evidence`, or `/api/ask`.
+
+
 
 

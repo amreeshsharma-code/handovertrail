@@ -39,7 +39,7 @@ Every response returned by the backend API is **filtered by the viewer's clearan
 
 ## 3. Seeded Users
 
-Authentication is simulated via the `X-User-Id` HTTP request header for hackathon testing and demoing without login friction.
+Authentication is simulated via the `X-User-Id` HTTP request header for testing and demoing without login friction.
 
 | User ID (`X-User-Id`) | Full Name | Role | Clearance Level | Permissions / Responsibilities |
 |---|---|---|---|---|
@@ -47,7 +47,19 @@ Authentication is simulated via the `X-User-Id` HTTP request header for hackatho
 | `maya` | Maya Patel | `lead` | **2 (Lead-Only)** | Engineering Director / Approver. Can review, edit, reject, confirm claims, and approve final handovers. |
 | `arjun` | Arjun Rao | `successor` | **1 (Team)** | Incoming Software Engineer. Reads approved handovers, acknowledges receipt, can query Q&A within Level 1 clearance. |
 
-*Default Fallback*: If `X-User-Id` is missing, the backend defaults to `arjun` (least privilege, Level 1).
+*Authentication Rule*: If `X-User-Id` is missing, empty, or unseeded, the backend returns `401 Unauthorized`. Allowed demo users are `riya`, `maya`, `arjun`.
+
+### Security Hardening & Headers
+All API responses include OWASP defense-in-depth headers:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: geolocation=(), microphone=(), camera=()`
+- `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; ...`
+- `Cache-Control: no-store, no-cache, must-revalidate, private` on all `/api/*` endpoints.
+- Request payload size limit: 2 MB (exceeding returns HTTP 413).
+- Rate limiter: In-memory sliding window on expensive endpoints (`POST /api/extract`, `/api/demo/load`, `/api/ask`, `/api/plan/generate`).
+
 
 ---
 

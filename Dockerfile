@@ -31,6 +31,13 @@ COPY backend/ ./backend/
 COPY data/ ./data/
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
+# Create dedicated non-root user and assign permissions
+RUN groupadd --system --gid 1001 appgroup && \
+    useradd --system --uid 1001 --gid appgroup --create-home --home-dir /home/appuser appuser && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
