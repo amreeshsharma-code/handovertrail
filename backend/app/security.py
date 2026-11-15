@@ -44,7 +44,14 @@ def get_current_user(
             detail="Missing X-User-Id header. Allowed demo users: riya, maya, arjun.",
         )
 
-    user_id = x_user_id.lower().strip()
+    cleaned_id = x_user_id.strip()
+    if len(cleaned_id) > 50 or not all(c.isalnum() or c in "-_" for c in cleaned_id):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid X-User-Id format. Allowed demo users: riya, maya, arjun.",
+        )
+
+    user_id = cleaned_id.lower()
 
     # Look up in DB
     user = db.query(User).filter(User.id == user_id).first()
@@ -62,9 +69,10 @@ def get_current_user(
             db.commit()
             db.refresh(user)
         else:
+            safe_display = "".join(c for c in user_id if c.isalnum() or c in "-_")[:30]
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Unknown user '{user_id}'. Allowed demo users: riya, maya, arjun.",
+                detail=f"Unknown user '{safe_display}'. Allowed demo users: riya, maya, arjun.",
             )
     return user
 
