@@ -36,3 +36,24 @@ This document transparently notes all architectural and implementation decisions
 - **Original Plan**: Separate frontend Vercel deployment and backend Render web service.
 - **Change**: Single unified web service where FastAPI serves `frontend/dist` with SPA client-side fallback.
 - **Why**: Eliminates CORS errors, cookie domain mismatches, and double cold-starts. Judges test one link.
+
+---
+
+## 5. Defense-in-Depth Security Hardening & Container Privilege De-escalation
+- **Original Plan**: Standard default FastAPI middleware and default container execution.
+- **Change**: Implemented an explicit defense-in-depth security layer:
+  1. Static SPA catch-all routing verifies `commonpath` to eliminate directory traversal.
+  2. OWASP response headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and strict CSP).
+  3. `Cache-Control: no-store` on all `/api/*` endpoints to prevent client disk caching of confidential handover claims.
+  4. Global 2 MB request payload size limiter returning HTTP 413.
+  5. In-memory sliding-window rate limiter on expensive POST endpoints.
+  6. Dockerfile creates and executes as an unprivileged system user (`appuser:appgroup`, UID 1001).
+- **Why**: Protects sensitive handover data against traversal, clickjacking, caching leaks, and container breakout risks.
+
+---
+
+## 6. Multi-Platform Deployment Support (Render & Railway)
+- **Original Plan**: Render-only deployment.
+- **Change**: Added `railway.json` configuration and hardened Dockerfile dynamic `${PORT:-8080}` port binding.
+- **Why**: Provides redundancy and zero-friction deployment across both Render and Railway cloud platforms.
+
