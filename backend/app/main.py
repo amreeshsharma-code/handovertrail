@@ -74,6 +74,91 @@ app.add_middleware(
 )
 
 
+# Security Headers Middleware (OWASP recommended defense-in-depth)
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    # Content-Security-Policy: allow self, inline styles for Vite/Tailwind, and data: for fonts/images
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self';"
+    )
+    response.headers["Content-Security-Policy"] = csp
+
+    # Anti-caching headers on all API endpoints returning sensitive handover knowledge
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+        response.headers["Pragma"] = "no-cache"
+
+    return response
+
+
+# Maximum allowed request body size (2 MB)
+MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024
+
+
+@app.middleware("http")
+async def body_size_limit_middleware(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REQUEST_BODY_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request payload exceeds maximum allowed size of 2 MB."},
+                )
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length header."})
+    return await call_next(request)
+
+
+# Sliding-window rate limiter for high-cost computational endpoints
+_rate_limit_records: dict = {}
+RATE_LIMIT_WINDOW_SECONDS = 60.0
+RATE_LIMIT_MAX_REQUESTS = 60
+EXPENSIVE_ENDPOINTS = {
+    "/api/extract",
+    "/api/demo/load",
+    "/api/ask",
+    "/api/plan/generate",
+}
+
+
+@app.middleware("http")
+async def rate_limiter_middleware(request: Request, call_next):
+    if request.method == "POST" and request.url.path in EXPENSIVE_ENDPOINTS:
+        client_ip = request.client.host if request.client else "unknown"
+        user_key = request.headers.get("x-user-id") or client_ip
+        now = time.time()
+
+        history = _rate_limit_records.get(user_key, [])
+        # Evict timestamps outside sliding window
+        history = [t for t in history if now - t < RATE_LIMIT_WINDOW_SECONDS]
+        if len(history) >= RATE_LIMIT_MAX_REQUESTS:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded for resource-intensive operation. Please retry later."},
+                headers={"Retry-After": "60"},
+            )
+        history.append(now)
+        _rate_limit_records[user_key] = history
+
+    return await call_next(request)
+
+
 # Structured Request/Response Logging Middleware (never logs request body or secrets)
 @app.middleware("http")
 async def safe_logging_middleware(request: Request, call_next):
@@ -157,14 +242,24 @@ if os.path.exists(frontend_dist_path) and os.path.exists(os.path.join(frontend_d
     if os.path.exists(assets_path):
         app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
-    # Catch-all route to serve SPA index.html for React Router
+    # Catch-all route to serve SPA index.html for React Router with path traversal protection
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     async def serve_spa(request: Request, full_path: str):
         if full_path.startswith("api/") or full_path == "health":
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
-        file_path = os.path.join(frontend_dist_path, full_path)
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
+
+        # Sanitize path: resolve absolute path and guarantee it remains strictly inside frontend_dist_path
+        normalized_rel_path = full_path.lstrip("/\\")
+        target_path = os.path.abspath(os.path.join(frontend_dist_path, normalized_rel_path))
+        try:
+            if os.path.commonpath([frontend_dist_path, target_path]) != frontend_dist_path:
+                return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        except ValueError:
+            # Different drives on Windows or malformed paths
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+
+        if os.path.isfile(target_path):
+            return FileResponse(target_path)
         return FileResponse(os.path.join(frontend_dist_path, "index.html"))
 else:
     @app.get("/")
