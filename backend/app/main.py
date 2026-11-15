@@ -84,13 +84,13 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
-    # Content-Security-Policy: allow self, inline styles for Vite/Tailwind, and data: for fonts/images
+    # Content-Security-Policy: allow self, inline styles for Vite/Tailwind, and Google Fonts
     csp = (
         "default-src 'self'; "
         "script-src 'self'; "
-        "style-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src 'self' data: https:; "
-        "font-src 'self' data:; "
+        "font-src 'self' data: https://fonts.gstatic.com; "
         "connect-src 'self'; "
         "object-src 'none'; "
         "frame-ancestors 'none'; "
@@ -147,6 +147,16 @@ async def rate_limiter_middleware(request: Request, call_next):
         history = _rate_limit_records.get(user_key, [])
         # Evict timestamps outside sliding window
         history = [t for t in history if now - t < RATE_LIMIT_WINDOW_SECONDS]
+
+        # Burst check for rapid clicks (e.g. 5x clicks in under 2 seconds on demo load)
+        burst_recent = [t for t in history if now - t < 5.0]
+        if request.url.path == "/api/demo/load" and len(burst_recent) >= 4:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests, try again in 5 seconds."},
+                headers={"Retry-After": "5"},
+            )
+
         if len(history) >= RATE_LIMIT_MAX_REQUESTS:
             return JSONResponse(
                 status_code=429,
