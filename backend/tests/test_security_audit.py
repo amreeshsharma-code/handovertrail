@@ -190,3 +190,4 @@ def test_canary_leak_protection_across_endpoints(client):
     assert res.status_code == 200
     for tok in canary_tokens:
         assert tok not in res.text
+

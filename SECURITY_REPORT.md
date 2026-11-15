@@ -122,3 +122,4 @@ A comprehensive application security audit of **HandoverTrail** was conducted co
 
 ### Limitations Wording
 > For hackathon demonstration and role evaluation, identity is simulated via the `X-User-Id` header rather than an external OAuth/OIDC provider; however, the server strictly validates all headers and applies role-based clearance checks on every request. Rate limiting operates on an in-memory sliding window suited for single-service deployments.
+
