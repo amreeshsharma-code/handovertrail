@@ -153,3 +153,27 @@ To prevent discrepancies between preview and reality, `app/services/handover.py`
 - **Warn**: Redaction placeholders (`[REDACTED:...]`), unresolved conflicts, single-evidence citations.
 - **Info**: Clearance isolation counts (Level 2 items and Level 3 confidential counts).
 
+---
+
+## 5. Defense-in-Depth Security & Container Architecture
+
+### 1. HTTP Middleware Pipeline
+All incoming traffic traverses a hardened FastAPI HTTP middleware stack executed in reverse registration order:
+- **Body Size Limiter**: Inspects `Content-Length` headers, rejecting any request exceeding 2 MB (`2 * 1024 * 1024` bytes) with `HTTP 413 Request Entity Too Large` to prevent memory exhaustion and buffer overflows.
+- **Sliding-Window Rate Limiter**: Protects computationally expensive operations (`POST /api/extract`, `/api/demo/load`, `/api/ask`, `/api/plan/generate`) via an in-memory sliding window limiter (max 60 requests per 60 seconds per client IP/user).
+- **CORS Protection**: Whitelists local and preview environments while strictly disallowing the wildcard `*` with credentials in production (`ENVIRONMENT=production`).
+- **OWASP Security Headers**: Enforces defense-in-depth headers on every HTTP response:
+  - `X-Content-Type-Options: nosniff` (prevents MIME type sniffing)
+  - `X-Frame-Options: DENY` (clickjacking protection)
+  - `Referrer-Policy: strict-origin-when-cross-origin` (prevents path leakage in referrers)
+  - `Permissions-Policy: geolocation=(), microphone=(), camera=()` (disables unused browser sensors)
+  - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; ... frame-ancestors 'none'; base-uri 'self'`
+- **Anti-Caching for Sensitive Knowledge**: Every `/api/*` endpoint serves `Cache-Control: no-store, no-cache, must-revalidate, private` and `Pragma: no-cache` to ensure confidential handover claims and evidence are never cached by intermediaries or browser disks.
+
+### 2. Static File Serving & Path Traversal Prevention
+The single-service SPA catch-all handler (`serve_spa` in `backend/app/main.py`) validates that normalized requested file paths remain strictly contained within `frontend_dist_path` via `os.path.commonpath([frontend_dist_path, target_path]) == frontend_dist_path`. Any path containing dot-dot sequences (`..` or `%2e%2e`) returns `HTTP 404 Not Found`.
+
+### 3. Container Privilege De-Escalation
+The multi-stage `Dockerfile` creates a dedicated system group and unprivileged user (`appgroup:appuser`, UID 1001), assigns ownership of `/app`, and drops root privileges with `USER appuser`. In runtime environments (Render, Railway, Kubernetes), the process executes without root access.
+
+

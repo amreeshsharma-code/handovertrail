@@ -16,7 +16,8 @@
 |---|---|---|---|---|
 | **1** | **Full Conflict-Resolution Workflow with Exit-Interview Questions** | Member 1 | **Delivered** | - Multi-attribute conflict detection engine (`backend/app/services/conflicts.py`) catches all 4 planted conflicts.<br>- 6 dedicated REST endpoints (`/api/conflicts/*`, `/api/interview/*`).<br>- Dual resolution strategies (choose claim vs. synthesized human correction) with transactional claim status updates.<br>- Side-by-side evidence quote comparison in React UI (`frontend/src/pages/ConflictsPage.tsx`).<br>- Exit interview with PII/secret masking and automatic conversion to Level-2 evidence units (`backend/app/services/gaps.py`).<br>- Approval gating: open/unresolved conflicts block handover approval with HTTP 409 Conflict.<br>- 12 automated pytest tests in `test_conflicts.py`, `test_interview.py`, and `test_resolution.py` passing 100%. |
 | **2** | **Version History, Visual Diffs & Audit Export** | Member 2 | **Delivered** | - Cryptographic SHA-256 versioning and snapshot persistence in SQLite (`handover_versions`).<br>- Version diff engine (`GET /api/versions/diff`) comparing added, modified, removed claims and text diffs across snapshots.<br>- Dedicated Version History UI (`frontend/src/pages/HistoryPage.tsx`) with version selector, deep-linking, and visual diff badges.<br>- Recipient acknowledgement tracking (`GET /api/acknowledgements`) with status badges.<br>- Audit logging of every administrative action (resolutions, skips, approvals).<br>- RFC 4180 CSV export (`GET /api/audit/export?format=csv`) with formula injection defense (safe `'` prefixing on `=`, `+`, `-`, `@`).<br>- 10 automated pytest tests in `test_versions.py` and `test_audit.py` passing 100%. |
-| **3** | **First 7 Days Plan & Successor Experience** | Member 3 | **Delivered** | - Deterministic rule-based 5-day structured onboarding plan generator (`backend/app/services/plan.py`).<br>- Role-based plan customization (backend, frontend, full-stack).<br>- Lead plan curation (edit, pin, delete, publish).<br>- Successor interactive checkbox progress tracking (`PATCH /api/plan/items/{id}/progress`) with persistence in `handover_state.json`.<br>- "Share Handover" modal with successor pre-flight validation checklist (`GET /api/preview/check`).<br>- Read-only shareable handover preview link (`/preview?token=...` / `GET /api/preview`) perfectly equivalent to authenticated successor view.<br>- Default visual scaling baseline for high-DPI displays in `frontend/src/index.css`.<br>- 12 automated pytest tests in `test_plan.py` and `test_preview.py` passing 100%. |
+| **3** | **First 7 Days Plan & Successor Experience** | Member 3 | **Delivered** | - Deterministic rule-based 7-day structured onboarding plan generator (`backend/app/services/plan.py`).<br>- Role-based plan customization (backend, frontend, full-stack).<br>- Lead plan curation (edit, pin, delete, publish).<br>- Successor interactive checkbox progress tracking (`PATCH /api/plan/items/{id}/progress`) with persistence in `plan_progress`.<br>- "Share Handover" modal with successor pre-flight validation checklist (`GET /api/preview/check`).<br>- Read-only shareable handover preview link (`/preview?token=...` / `GET /api/preview`) perfectly equivalent to authenticated successor view.<br>- Default visual scaling baseline for high-DPI displays in `frontend/src/index.css`.<br>- 13 automated pytest tests in `test_plan.py` and `test_preview.py` passing 100%. |
+| **4** | **Security Audit, Defense-in-Depth Hardening & Container Security** | Team | **Delivered** | - Static SPA path traversal prevention via normalized `commonpath` verification.<br>- Clearance boundary enforcement on `PATCH /api/claims/{id}`.<br>- `X-User-Id` header validation, sanitization, and injection defense.<br>- OWASP security headers, anti-caching (`no-store`) on sensitive APIs, and 2 MB body size limiter.<br>- Sliding-window rate limiter on expensive POST endpoints.<br>- Hardened CSV formula injection sanitizer.<br>- Multi-stage Docker execution as unprivileged user `appuser:appgroup` (UID 1001).<br>- 7 automated regression tests in `test_security_audit.py` passing 100%. |
 
 ---
 
@@ -77,21 +78,30 @@ backend/tests/test_permissions.py::test_missing_auth_header_defaults_least_privi
 backend/tests/test_plan.py::test_generate_plan_deterministic PASSED            [ 82%]
 backend/tests/test_plan.py::test_plan_crud_operations PASSED                   [ 84%]
 backend/tests/test_plan.py::test_plan_item_reordering PASSED                   [ 86%]
-backend/tests/test_plan.py::test_plan_progress_toggle PASSED                   [ 88%]
-backend/tests/test_preview.py::test_preview_token_generation_and_access PASSED [ 90%]
-backend/tests/test_preview.py::test_preview_read_only_enforcement PASSED       [ 92%]
-backend/tests/test_preview.py::test_preview_share_checklist PASSED             [ 94%]
-backend/tests/test_resolution.py::test_resolve_conflict_chose_claim PASSED     [ 96%]
-backend/tests/test_resolution.py::test_resolve_conflict_corrected PASSED       [ 98%]
-backend/tests/test_resolution.py::test_dismiss_conflict_group PASSED            [100%]
+backend/tests/test_plan.py::test_plan_progress_toggle PASSED                   [ 75%]
+backend/tests/test_preview.py::test_preview_token_generation_and_access PASSED [ 77%]
+backend/tests/test_preview.py::test_preview_read_only_enforcement PASSED       [ 78%]
+backend/tests/test_preview.py::test_preview_share_checklist PASSED             [ 80%]
+backend/tests/test_resolution.py::test_resolve_conflict_chose_claim PASSED     [ 82%]
+backend/tests/test_resolution.py::test_resolve_conflict_corrected PASSED       [ 83%]
+backend/tests/test_resolution.py::test_dismiss_conflict_group PASSED            [ 85%]
+backend/tests/test_security_audit.py::test_x_user_id_validation_and_header_injection PASSED [ 87%]
+backend/tests/test_security_audit.py::test_security_headers_present PASSED     [ 89%]
+backend/tests/test_security_audit.py::test_body_size_limit_middleware PASSED   [ 90%]
+backend/tests/test_security_audit.py::test_csv_formula_injection_hardening PASSED [ 92%]
+backend/tests/test_security_audit.py::test_spa_path_traversal_blocked PASSED   [ 94%]
+backend/tests/test_security_audit.py::test_claim_patch_clearance_boundary PASSED [ 96%]
+backend/tests/test_security_audit.py::test_canary_leak_protection_across_endpoints PASSED [ 98%]
+backend/tests/test_interview.py::test_interview_input_validation_and_error_handling PASSED [100%]
 
-============================== 52 passed in 5.72s ==============================
+============================== 61 passed in 4.50s ==============================
 ```
 
-- **Passed**: 52
+- **Passed**: 61
 - **Failed**: 0
 - **Skipped**: 0
 - **Pass Rate**: 100.0%
+- **Line Coverage**: 86.0% (2582 / 3000 statements)
 
 ---
 

@@ -36,17 +36,20 @@ HandoverTrail ingests project exports (Git, Jira, Meeting Notes, Slack), extract
 | **Multi-Source Ingestion** | **Built** | Normalizes Git issues/PRs/commits, Jira task boards, Markdown notes, and Slack exports. |
 | **Server-Side Clearance Boundaries** | **Built** | Strict 3-level clearance (`1=Team`, `2=Lead-Only`, `3=Confidential`). Enforced server-side before return. |
 | **Deterministic Quote Verifier** | **Built** | Pure Python engine checks verbatim substring containment. Status `verified` is never hallucinated. |
-| **Planted Conflict Quarantining** | **Built** | Detects conflicting statements across sources (e.g. 30-day monthly vs 90-day quarterly key rotation). |
+| **Planted Conflict Quarantining & Resolution** | **Built** | Detects conflicting statements across sources; provides atomic lead resolutions (`chose_claim`, `corrected`, `dismiss`, `leave-unresolved`). |
 | **Autonomous Secret & PII Masking** | **Built** | Redacts API keys (`sk_live_...`) and phone numbers to `[REDACTED_API_KEY]` and `[REDACTED_PHONE]`. |
-| **Knowledge Gap & Leaver Q&A** | **Built** | Automatically synthesizes open questions from abandoned PRs (PR #88 socket leak) and captures leaver answers. |
+| **Knowledge Gap & Leaver Exit Interview** | **Built** | Synthesizes open questions from abandoned PRs and captures leaver answers with pre-storage masking and Level 2 evidence creation. |
 | **Single-Owner Risk Detection** | **Built** | Flags critical modules authored solely by the departing engineer (e.g. Stripe payment reconciliation). |
+| **First-7-Days Plan & Successor Preview** | **Built** | Deterministic rule-based 7-day onboarding plan with interactive checklist and mathematical Preview-as-Successor equivalence. |
+| **Version History, Diffs & Audit Export** | **Built** | Semantic side-by-side claim diffing across versions, recipient acknowledgement tracking, and RFC 4180 CSV audit export. |
+| **Defense-in-Depth Security Hardening** | **Built** | OWASP security headers, anti-caching, 2 MB body size limiter, sliding-window rate limiter, CSV formula protection, and non-root Docker execution. |
 | **Lead Approval Gate** | **Built** | Freezes immutable versioned snapshot (`1.0.0`). Only leads can approve. |
 | **Successor Onboarding & Acknowledgement** | **Built** | Role-tailored view for successors with cryptographic acknowledgement logging. |
 | **Immutable Audit Trail** | **Built** | Tamper-evident log of all extractions, edits, approvals, and acknowledgements. |
 | **Citations-Only Q&A (`/api/ask`)** | **Built** | Interactive assistant answering strictly from approved, permitted content with exact citations. |
 
 > [!NOTE]
-> For planned post-MVP extensions (GitHub PR webhooks, Slack interactive sign-off bot, visual diffs), see [docs/ROUND3.md](docs/ROUND3.md).
+> Round 3 delivered all three major enhancements (Conflict Resolution & Exit Interview, Version History & Visual Diff, First-7-Days Plan & Preview-as-Successor) alongside a complete security audit ([SECURITY_REPORT.md](SECURITY_REPORT.md)). See [docs/ROUND3.md](docs/ROUND3.md) for details.
 
 ---
 
@@ -98,16 +101,17 @@ flowchart TD
   - `Tailwind CSS + shadcn/ui patterns`: Clean, accessible, corporate-grade design system.
   - `Recharts`: Visual progress graphs, status breakdowns, and readiness indicators.
   - `Lucide React`: Consistent iconography.
-- **Backend**:
+- **Backend & Security**:
   - `Python 3.11 / 3.12 + FastAPI`: High-performance asynchronous API with automatic OpenAPI documentation.
-  - `Pydantic v2`: Strict request/response validation and serialization.
+  - `Pydantic v2`: Strict request/response validation, schema contracts, and serialization.
   - `SQLAlchemy 2 + SQLite`: File-based SQLite with WAL mode for zero-setup local execution and single-instance cloud hosting.
-  - `pytest + pytest-asyncio`: End-to-end regression and permission test suites.
+  - `pytest + pytest-asyncio`: End-to-end regression and permission test suites (61 tests, 86% coverage).
+  - `Defense-in-Depth Middleware`: OWASP security headers (`nosniff`, `DENY`, `strict-origin-when-cross-origin`, strict CSP), anti-caching headers on `/api/*`, 2 MB payload size limiting, sliding-window rate limiting, and unprivileged non-root container user (`appuser`).
 - **AI & Trust**:
   - `Google Gemini API (gemini-2.5-flash)`: Structured extraction with JSON schema output via the official `google-genai` SDK and deterministic seed fallback (`fixtures/claims_cache.json`).
   - `Deterministic Verifier`: Pure Python verification — **no LLM grades its own homework**.
 - **Deployment**:
-  - Single Render/Railway web service: FastAPI serves the compiled React distribution from `frontend/dist` with client-side SPA routing fallback. Evaluators need only one URL.
+  - Single Render/Railway web service: Multi-stage Docker container runs as non-root `appuser`. FastAPI serves the compiled React distribution from `frontend/dist` with client-side SPA routing fallback. Evaluators need only one URL.
 
 ---
 
@@ -135,7 +139,7 @@ make dev
 - Backend API & OpenAPI Docs: `http://localhost:8000/api/docs`
 - Health check: `http://localhost:8000/health`
 
-### Run Backend Tests
+### Run Backend Tests (61 Tests, 86% Line Coverage)
 ```bash
 make test
 ```
@@ -202,6 +206,8 @@ handovertrail/
 ├── .env.example            # Environment template
 ├── .gitignore              # Clean ignore rules
 ├── render.yaml             # Render single-service deployment
+├── railway.json            # Railway deployment configuration
+├── SECURITY_REPORT.md      # Comprehensive security audit & verification report
 ├── docs/
 │   ├── CONTRACT.md         # Single source of truth API & data contract
 │   ├── ARCHITECTURE.md     # In-depth architectural design
